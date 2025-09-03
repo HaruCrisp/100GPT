@@ -1,6 +1,38 @@
-# Ignore environment variables
+# -------------------
+# Environment
+# -------------------
 .env
 
-# Ignore Python cache files
+# -------------------
+# Python (backend)
+# -------------------
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+env/
+venv/
+
+# -------------------
+# Node/JS (extension - in case you add npm later)
+# -------------------
+node_modules/
+package-lock.json
+yarn.lock
+
+# -------------------
+# Editor / IDE
+# -------------------
+.vscode/
+.idea/
+
+# -------------------
+# OS/System
+# -------------------
+.DS_Store
+Thumbs.db
