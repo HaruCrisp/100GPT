@@ -1,6 +1,6 @@
 # 100GPT
 
-**100GPT** is an AI-powered Chrome Extension + FastAPI backend that can:
+ **100GPT** is an AI-powered Chrome Extension + FastAPI backend that can:
 - Paraphrase highlighted text on any webpage
 - Capture screenshots → extract text (OCR) → paraphrase it with AI
 
