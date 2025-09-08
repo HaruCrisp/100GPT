@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>100GPT Side Panel</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 12px; }
+    .row { margin-bottom: 10px; }
+    textarea { width: 100%; min-height: 140px; resize: vertical; }
+    button { padding: 8px 12px; cursor: pointer; }
+    .mode-toggle { display: flex; gap: 8px; margin-bottom: 8px; }
+    .result { white-space: pre-wrap; background: #f6f7f9; padding: 10px; border-radius: 8px; }
+    .small { color: #666; font-size: 12px; }
+    .error { color: #b00020; }
+    .row-inline { display: flex; gap: 8px; align-items: center; }
+    input[type="text"] { width: 100%; }
+  </style>
+</head>
+<body>
+  <h3>100GPT</h3>
+
+  <div class="row small">
+    Backend URL (change if needed): 
+  </div>
+  <div class="row row-inline">
+    <input id="serverUrl" type="text" placeholder="http://127.0.0.1:8000" />
+    <button id="saveServer">Save</button>
+  </div>
+
+  <div class="row small">
+    Tip: Right-click selected text → “Send selection to 100GPT side panel”.
+  </div>
+
+  <div class="row">
+    <div class="mode-toggle">
+      <label><input type="radio" name="mode" value="paraphrase" checked /> Paraphrase</label>
+      <label><input type="radio" name="mode" value="humanize" /> Humanize</label>
+    </div>
+    <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
+  </div>
+
+  <div class="row row-inline">
+    <button id="runBtn">Run</button>
+    <span id="status" class="small"></span>
+  </div>
+
+  <div class="row">
+    <div class="result" id="resultText" placeholder=""></div>
+  </div>
+
+  <div class="row small">
+    <span id="error" class="error"></span>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
