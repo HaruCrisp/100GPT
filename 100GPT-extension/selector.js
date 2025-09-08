@@ -1,6 +1,8 @@
+// selector.js
 (() => {
+  // remove old overlay if still present
   if (window.__100GPT_overlay) {
-    window.__100GPT_overlay.remove();
+    try { window.__100GPT_overlay.remove(); } catch {}
     delete window.__100GPT_overlay;
     delete window.__100GPT_getSelectionRect;
   }
@@ -8,10 +10,7 @@
   const overlay = document.createElement("div");
   Object.assign(overlay.style, {
     position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100%",
-    height: "100%",
+    inset: "0",
     zIndex: "2147483647",
     cursor: "crosshair",
     background: "rgba(0,0,0,0.05)"
@@ -64,14 +63,17 @@
     const w = Math.abs(e.clientX - startX);
     const h = Math.abs(e.clientY - startY);
 
-    setTimeout(() => {
-      overlay.remove();
-      rectBox.remove();
-      delete window.__100GPT_overlay;
-      delete window.__100GPT_getSelectionRect;
-    }, 100);
-
+    // expose getter that background.js will call
     window.__100GPT_getSelectionRect = () => ({ x, y, w, h });
+
+    // small delay so the getter can be called, then cleanup
+    setTimeout(() => {
+      try { overlay.remove(); } catch {}
+      try { rectBox.remove(); } catch {}
+      delete window.__100GPT_overlay;
+      // NOT deleting __100GPT_getSelectionRect immediately; background will read it
+      setTimeout(() => { delete window.__100GPT_getSelectionRect; }, 2000);
+    }, 100);
   }
 
   overlay.addEventListener("mousedown", onMouseDown);

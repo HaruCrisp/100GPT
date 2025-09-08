@@ -1,8 +1,8 @@
+// background.js
 const SERVER = "http://127.0.0.1:8000"; // your FastAPI server
 
 // -------- context menus --------
 chrome.runtime.onInstalled.addListener(() => {
-  // Selected text → paraphrase/humanize
   chrome.contextMenus.create({
     id: "100gpt-paraphrase-text",
     title: "Paraphrase with 100GPT",
@@ -13,8 +13,6 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Humanize with 100GPT",
     contexts: ["selection"]
   });
-
-  // Screenshot (no selection required)
   chrome.contextMenus.create({
     id: "100gpt-paraphrase-screenshot",
     title: "Paraphrase from Screenshot (100GPT)",
@@ -30,42 +28,46 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
     if (info.menuItemId === "100gpt-paraphrase-text" && info.selectionText) {
-      const body = JSON.stringify({ text: info.selectionText });
       const res = await fetch(`${SERVER}/paraphrase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body
+        body: JSON.stringify({ text: info.selectionText })
       });
-      const json = await res.json();
-      showResult(`Paraphrase:\n\n${json.paraphrased || json.error || "(no result)"}`);
+      const json = await safeJson(res);
+      if (!res.ok) throw new Error(json?.detail || `HTTP ${res.status}`);
+      showResult(`Paraphrase:\n\n${json.paraphrased || "(no result)"}`);
+      return;
     }
 
     if (info.menuItemId === "100gpt-humanize-text" && info.selectionText) {
-      const body = JSON.stringify({ text: info.selectionText });
       const res = await fetch(`${SERVER}/humanize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body
+        body: JSON.stringify({ text: info.selectionText })
       });
-      const json = await res.json();
-      showResult(`Humanized:\n\n${json.humanized || json.error || "(no result)"}`);
+      const json = await safeJson(res);
+      if (!res.ok) throw new Error(json?.detail || `HTTP ${res.status}`);
+      showResult(`Humanized:\n\n${json.humanized || "(no result)"}`);
+      return;
     }
 
     if (info.menuItemId === "100gpt-paraphrase-screenshot") {
       const out = await captureAndPipeline(tab, "paraphrase");
       showOCRPipeline(out, "paraphrase");
+      return;
     }
 
     if (info.menuItemId === "100gpt-humanize-screenshot") {
       const out = await captureAndPipeline(tab, "humanize");
       showOCRPipeline(out, "humanize");
+      return;
     }
   } catch (e) {
-    showResult("Error: " + String(e));
+    showResult("Error: " + String(e?.message || e));
   }
 });
 
-// -------- popup.js also calls this via runtime message --------
+// -------- popup.js hook --------
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "CAPTURE_AND_OCR") {
     (async () => {
@@ -74,43 +76,53 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const out = await captureAndPipeline(tab, msg.mode || "paraphrase");
         sendResponse(out);
       } catch (e) {
-        sendResponse({ error: String(e) });
+        sendResponse({ error: String(e?.message || e) });
       }
     })();
     return true; // keep port open
   }
 });
 
-// -------- helper: capture + crop + send to backend --------
+// -------- helper: capture + crop (MV3-safe) + send to backend --------
 async function captureAndPipeline(tab, mode) {
-  // inject selector overlay
+  // 1) inject selector overlay
   await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     files: ["selector.js"]
   });
 
-  // get rect from content page (CSS pixels)
-  const [{ result: rect }] = await chrome.scripting.executeScript({
+  // 2) get rect + DPR from page context (NOT from worker)
+  const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    func: () => window.__100GPT_getSelectionRect?.()
+    func: () => {
+      const rect = (window.__100GPT_getSelectionRect && window.__100GPT_getSelectionRect()) || null;
+      const dpr = window.devicePixelRatio || 1;
+      return { rect, dpr };
+    }
   });
 
+  const rect = result?.rect;
+  const dpr = result?.dpr || 1;
   if (!rect) return { error: "Selection cancelled" };
 
-  // capture visible area
-  const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+  // 3) capture visible area
+  const dataUrl = await chrome.tabs
+    .captureVisibleTab(tab.windowId, { format: "png" })
+    .catch(() => { throw new Error("Capture failed (page not capturable or no permission)."); });
 
-  // crop using devicePixelRatio
-  const croppedDataUrl = await cropDataUrl(dataUrl, rect);
+  // 4) crop in worker using createImageBitmap + OffscreenCanvas
+  const croppedDataUrl = await cropDataUrlWorker(dataUrl, rect, dpr);
 
-  // send to backend as multipart
+  // 5) send to backend as multipart
   const form = new FormData();
   form.append("mode", mode);
-  const blob = dataURLtoBlob(croppedDataUrl);
+  const blob = await dataURLtoBlobAsync(croppedDataUrl);
   form.append("file", blob, "screenshot.png");
 
   const res = await fetch(`${SERVER}/ocr_pipeline`, { method: "POST", body: form });
-  return await res.json();
+  const json = await safeJson(res);
+  if (!res.ok) return { error: json?.detail || `HTTP ${res.status}` };
+  return json;
 }
 
 function showOCRPipeline(resp, mode) {
@@ -124,46 +136,57 @@ function showOCRPipeline(resp, mode) {
 }
 
 function showResult(message) {
-  chrome.notifications.create({
-    type: "basic",
-    iconUrl: "icon.png",
-    title: "100GPT",
-    message: message.slice(0, 10000)
-  });
+  try {
+    chrome.notifications.create({
+      type: "basic",
+      iconUrl: "icon.png",
+      title: "100GPT",
+      message: (message || "").slice(0, 10000)
+    });
+  } catch {
+    console.log("[100GPT]", message);
+  }
 }
 
-// ------ image utils ------
-function dataURLtoBlob(dataURL) {
-  const parts = dataURL.split(",");
-  const byteString = atob(parts[1]);
-  const mime = parts[0].match(/:(.*?);/)[1];
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-  return new Blob([ab], { type: mime });
+// ------ image utils (MV3-safe) ------
+async function cropDataUrlWorker(dataUrl, rect, dpr) {
+  // load PNG into bitmap
+  const resp = await fetch(dataUrl);
+  const srcBlob = await resp.blob();
+  const bmp = await createImageBitmap(srcBlob);
+
+  const scale = dpr || 1;
+  const sx = Math.max(0, Math.round(rect.x * scale));
+  const sy = Math.max(0, Math.round(rect.y * scale));
+  const sw = Math.max(1, Math.round(rect.w * scale));
+  const sh = Math.max(1, Math.round(rect.h * scale));
+
+  const canvas = new OffscreenCanvas(sw, sh);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
+  const outBlob = await canvas.convertToBlob({ type: "image/png" });
+  return blobToDataURL(outBlob);
 }
 
-function cropDataUrl(dataUrl, rect) {
+function blobToDataURL(blob) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = self.devicePixelRatio || 1;
-      const sx = Math.max(0, Math.round(rect.x * scale));
-      const sy = Math.max(0, Math.round(rect.y * scale));
-      const sw = Math.max(1, Math.round(rect.w * scale));
-      const sh = Math.max(1, Math.round(rect.h * scale));
-
-      const c = new OffscreenCanvas(sw, sh);
-      const g = c.getContext("2d");
-      g.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-      c.convertToBlob({ type: "image/png" }).then(blob => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(fr.result);
-        fr.onerror = reject;
-        fr.readAsDataURL(blob);
-      }, reject);
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
   });
 }
+
+async function dataURLtoBlobAsync(dataURL) {
+  const res = await fetch(dataURL);
+  return await res.blob();
+}
+
+async function safeJson(res) {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
