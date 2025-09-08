@@ -20,6 +20,5 @@
 - **100GPT-server/**  
   - FastAPI app with endpoints for paraphrasing, humanizing, and OCR pipeline  
   - Uses OpenAI API + Tesseract OCR  
-  - `.env` file for secrets (ignored by Git; use `.env.example` for sharing)  
-
+  
 ---
