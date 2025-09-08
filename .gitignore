@@ -1,7 +1,13 @@
 # -------------------
 # Environment
 # -------------------
-# .env
+.env
+*.venv/
+venv/
+env/
+ENV/
+env.bak/
+100GPT-server/.env
 
 # -------------------
 # Python (backend)
@@ -14,25 +20,63 @@ __pycache__/
 *.egg
 dist/
 build/
-.venv/
-env/
-venv/
+.eggs/
+MANIFEST
+Pipfile
+Pipfile.lock
+poetry.lock
 
 # -------------------
-# Node/JS (extension - in case you add npm later)
+# Node/JS (extension)
 # -------------------
 node_modules/
 package-lock.json
 yarn.lock
 
 # -------------------
+# Chrome Extension
+# -------------------
+*.zip
+
+# -------------------
 # Editor / IDE
 # -------------------
 .vscode/
 .idea/
+.history/
 
 # -------------------
 # OS/System
 # -------------------
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
+*.temp
+
+# -------------------
+# Logs / Databases
+# -------------------
+*.log
+*.sqlite3
+*.db
+
+# -------------------
+# Test / Coverage
+# -------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# -------------------
+# Jupyter
+# -------------------
+.ipynb_checkpoints
+*.ipynb

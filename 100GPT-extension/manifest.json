@@ -3,7 +3,8 @@
   "name": "100GPT",
   "version": "1.0.0",
   "description": "Paraphrase text or screenshots using AI.",
-  "permissions": ["contextMenus", "activeTab", "storage", "tabs"],
+  "permissions": ["contextMenus", "activeTab", "storage", "tabs", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
@@ -16,3 +17,4 @@
     }
   }
 }
+

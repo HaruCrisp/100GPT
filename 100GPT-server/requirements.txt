@@ -1,4 +1,7 @@
 fastapi
 uvicorn
-openai
 python-dotenv
+openai
+pillow
+pytesseract
+python-multipart
