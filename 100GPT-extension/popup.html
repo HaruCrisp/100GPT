@@ -6,32 +6,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
-      /* greens */
-      --bg: #e8f5e9;            /* light green page */
-      --card: #f1fbf2;          /* slightly lighter panel */
-      --btn: #1b5e20;           /* dark green button */
-      --btn-hover: #2e7d32;     /* hover */
-      --btn-active: #145a1e;    /* active */
-      --text: #0b2e13;          /* deep green text */
-      --muted: #3f6248;         /* muted text */
-      --border: #c7e6cd;        /* soft border */
+      --pop-width: 720px;       /* Chrome popup max ~800px */
+      --bg: #e8f5e9;
+      --card: #f1fbf2;
+      --btn: #1b5e20;
+      --btn-hover: #2e7d32;
+      --btn-active: #145a1e;
+      --text: #0b2e13;
+      --muted: #3f6248;
+      --border: #c7e6cd;
       --shadow: 0 6px 20px rgba(27,94,32,.18);
       --radius: 14px;
     }
 
+    /* Force width even in weird containers */
     html, body {
       margin: 0;
       padding: 0;
+      width: var(--pop-width) !important;
+      min-width: var(--pop-width) !important;
       background: var(--bg);
       color: var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+      overflow: hidden; /* prevents extra scrollbars in tiny containers */
     }
 
-    /* Wider, landscape-y popup.
-       Note: Chrome popup max is ~800x600. */
     .wrap {
-      width: 720px;
-      max-width: 95vw;
+      width: var(--pop-width);
       min-height: 260px;
       padding: 16px;
       box-sizing: border-box;
@@ -45,26 +46,18 @@
       padding: 16px;
     }
 
-    h3 {
-      margin: 0 0 10px 0;
-      font-size: 18px;
-      letter-spacing: .2px;
-    }
+    h3 { margin: 0 0 10px 0; font-size: 18px; }
 
     .row {
       display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 12px;
+      gap: 8px;
       flex-wrap: wrap;
+      margin-bottom: 8px;
+      justify-content: flex-end; /* right-align */
     }
-
-    .row.stretch {
-      align-items: stretch;
-    }
+    .row.stretch { align-items: stretch; }
 
     .btn {
-      appearance: none;
       border: none;
       background: var(--btn);
       color: #fff;
@@ -78,49 +71,81 @@
     }
     .btn:hover { background: var(--btn-hover); }
     .btn:active { background: var(--btn-active); transform: translateY(1px); }
-    .btn:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .spacer { flex: 1; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
 
     .out {
-      white-space: pre-wrap;
+      display: block;               /* not inline */
+      width: 100%;                  /* take the row */
+      box-sizing: border-box;       /* padding doesn't shrink width */
+      min-height: 120px;            /* comfy starting size */
+      max-height: 260px;            /* keep popup reasonable */
+      overflow-y: auto;             /* scroll long results */
+      white-space: pre-wrap;        /* wrap long text */
+      word-break: break-word;
+
       background: #ffffff;
-      border: 1px solid var(--border);
+      border: 1px solid #c7e6cd;
       border-radius: 10px;
       padding: 12px;
-      max-height: 260px;
-      overflow: auto;
       line-height: 1.35;
       font-size: 13.5px;
+      color: #0b2e13;
     }
 
-    .hint {
-      font-size: 12px;
-      color: var(--muted);
+    .hint { font-size: 12px; color: var(--muted); }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #eaf7ee;
+      border: 1px solid #c7e6cd;
+      border-radius: 12px;
+    }
+
+    .content {
+      margin-top: 10px;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0;
+      background: linear-gradient(90deg, #2e7d32, #4caf50);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="panel">
-      <div class="row">
-        <h3 style="margin-right:auto;">100GPT</h3>
-        <!-- Buttons on the right for a landscape feel -->
-        <button id="btn-para" class="btn">Paraphrase Screenshot</button>
-        <button id="btn-human" class="btn">Humanize Screenshot</button>
+      <div class="topbar">
+        <h3 class="logo">100GPT</h3>
+        <div class="actions">
+          <button id="btn-para" class="btn">Paraphrase Screenshot</button>
+          <button id="btn-human" class="btn">Humanize Screenshot</button>
+        </div>
       </div>
 
-      <div class="row">
-        <div class="hint">Right-click any page → “Paraphrase/Humanize from Screenshot (100GPT)” or use the buttons above.</div>
-      </div>
+      <div class="hint">Tip: Pin the extension so this popup can use full width.</div>
 
-      <div class="row stretch">
-        <div class="out" id="out">Ready.</div>
+      <div class="content">
+        <pre id="out" class="out">Ready.</pre>
       </div>
     </div>
   </div>
