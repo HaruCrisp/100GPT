@@ -4,6 +4,7 @@
 
 - ✍️ **Paraphrase** highlighted text on any webpage  
 - 🖼️ **Capture screenshots** → extract text (OCR) → paraphrase or humanize it with AI  
+- 🤝 **Humanize** text to make it more natural, conversational, and reader-friendly
 
 ---
 
