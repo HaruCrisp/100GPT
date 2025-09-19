@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "100GPT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Paraphrase text or screenshots using AI.",
-  "permissions": ["contextMenus", "activeTab", "storage", "tabs"],
+  "permissions": ["contextMenus", "activeTab", "storage", "tabs", "scripting", "sidePanel"],
+  "host_permissions": ["http://127.0.0.1:8000/*", "http://localhost:8000/*"],
   "background": {
     "service_worker": "background.js"
   },
@@ -14,5 +15,8 @@
       "48": "icon.png",
       "128": "icon.png"
     }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   }
 }

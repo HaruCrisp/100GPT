@@ -1,9 +1,155 @@
 <!doctype html>
 <html>
-<head><meta charset="utf-8"><title>100GPT</title></head>
+<head>
+  <meta charset="utf-8" />
+  <title>100GPT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --pop-width: 720px;       /* Chrome popup max ~800px */
+      --bg: #e8f5e9;
+      --card: #f1fbf2;
+      --btn: #1b5e20;
+      --btn-hover: #2e7d32;
+      --btn-active: #145a1e;
+      --text: #0b2e13;
+      --muted: #3f6248;
+      --border: #c7e6cd;
+      --shadow: 0 6px 20px rgba(27,94,32,.18);
+      --radius: 14px;
+    }
+
+    /* Force width even in weird containers */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: var(--pop-width) !important;
+      min-width: var(--pop-width) !important;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+      overflow: hidden; /* prevents extra scrollbars in tiny containers */
+    }
+
+    .wrap {
+      width: var(--pop-width);
+      min-height: 260px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    h3 { margin: 0 0 10px 0; font-size: 18px; }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      justify-content: flex-end; /* right-align */
+    }
+    .row.stretch { align-items: stretch; }
+
+    .btn {
+      border: none;
+      background: var(--btn);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .04s ease, background .15s ease, box-shadow .15s ease;
+      box-shadow: 0 2px 10px rgba(27,94,32,.22);
+      user-select: none;
+    }
+    .btn:hover { background: var(--btn-hover); }
+    .btn:active { background: var(--btn-active); transform: translateY(1px); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .out {
+      display: block;               /* not inline */
+      width: 100%;                  /* take the row */
+      box-sizing: border-box;       /* padding doesn't shrink width */
+      min-height: 120px;            /* comfy starting size */
+      max-height: 260px;            /* keep popup reasonable */
+      overflow-y: auto;             /* scroll long results */
+      white-space: pre-wrap;        /* wrap long text */
+      word-break: break-word;
+
+      background: #ffffff;
+      border: 1px solid #c7e6cd;
+      border-radius: 10px;
+      padding: 12px;
+      line-height: 1.35;
+      font-size: 13.5px;
+      color: #0b2e13;
+    }
+
+    .hint { font-size: 12px; color: var(--muted); }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #eaf7ee;
+      border: 1px solid #c7e6cd;
+      border-radius: 12px;
+    }
+
+    .content {
+      margin-top: 10px;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0;
+      background: linear-gradient(90deg, #2e7d32, #4caf50);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+  </style>
+</head>
 <body>
-  <h3>100GPT</h3>
-  <p>Loaded! Right-click selected text → “Paraphrase with 100GPT”.</p>
+  <div class="wrap">
+    <div class="panel">
+      <div class="topbar">
+        <h3 class="logo">100GPT</h3>
+        <div class="actions">
+          <button id="btn-para" class="btn">Paraphrase Screenshot</button>
+          <button id="btn-human" class="btn">Humanize Screenshot</button>
+        </div>
+      </div>
+
+      <div class="hint">Tip: Pin the extension so this popup can use full width.</div>
+
+      <div class="content">
+        <pre id="out" class="out">Ready.</pre>
+      </div>
+    </div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

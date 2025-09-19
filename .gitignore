@@ -2,6 +2,12 @@
 # Environment
 # -------------------
 .env
+*.venv/
+venv/
+env/
+ENV/
+env.bak/
+100GPT-server/.env
 
 # -------------------
 # Python (backend)
@@ -14,25 +20,81 @@ __pycache__/
 *.egg
 dist/
 build/
+<<<<<<< HEAD
 .venv/
 env/
 venv/
 
 # -------------------
 # Node/JS (extension - in case you add npm later)
+=======
+.eggs/
+MANIFEST
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# -------------------
+# Node/JS (extension)
+>>>>>>> 371a92ec1b4044ec7647619ba53803cc073c840d
 # -------------------
 node_modules/
 package-lock.json
 yarn.lock
 
 # -------------------
+<<<<<<< HEAD
+=======
+# Chrome Extension
+# -------------------
+*.zip
+
+# -------------------
+>>>>>>> 371a92ec1b4044ec7647619ba53803cc073c840d
 # Editor / IDE
 # -------------------
 .vscode/
 .idea/
+<<<<<<< HEAD
+=======
+.history/
+>>>>>>> 371a92ec1b4044ec7647619ba53803cc073c840d
 
 # -------------------
 # OS/System
 # -------------------
 .DS_Store
 Thumbs.db
+<<<<<<< HEAD
+=======
+*.swp
+*.swo
+*.bak
+*.tmp
+*.temp
+
+# -------------------
+# Logs / Databases
+# -------------------
+*.log
+*.sqlite3
+*.db
+
+# -------------------
+# Test / Coverage
+# -------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# -------------------
+# Jupyter
+# -------------------
+.ipynb_checkpoints
+*.ipynb
+>>>>>>> 371a92ec1b4044ec7647619ba53803cc073c840d
