@@ -35,7 +35,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       });
       const json = await safeJson(res);
       if (!res.ok) throw new Error(json?.detail || `HTTP ${res.status}`);
-      showResult(`Paraphrase:\n\n${json.paraphrased || "(no result)"}`);
+
+      const msg = `Paraphrase:\n\n${json.paraphrased || "(no result)"}`;
+      broadcastToPopup(msg);
+      await ensurePopupVisible(tab);   // 👈 try to pop the popup open
       return;
     }
 
@@ -47,7 +50,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       });
       const json = await safeJson(res);
       if (!res.ok) throw new Error(json?.detail || `HTTP ${res.status}`);
-      showResult(`Humanized:\n\n${json.humanized || "(no result)"}`);
+
+      const msg = `Humanized:\n\n${json.humanized || "(no result)"}`;
+      broadcastToPopup(msg);
+      await ensurePopupVisible(tab);   // 👈 open popup
       return;
     }
 
@@ -63,7 +69,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       return;
     }
   } catch (e) {
-    showResult("Error: " + String(e?.message || e));
+    const err = "Error: " + String(e?.message || e);
+    broadcastToPopup(err);
+    try { await ensurePopupVisible(tab); } catch {}
   }
 });
 
@@ -145,6 +153,25 @@ function showResult(message) {
     });
   } catch {
     console.log("[100GPT]", message);
+  }
+}
+
+function broadcastToPopup(message) {
+  // Persist so popup can load it on open
+  chrome.storage.local.set({ _100gpt_last: { ts: Date.now(), message } });
+  // Live update if popup is already open
+  chrome.runtime.sendMessage({ type: 'SHOW_IN_POPUP', message }).catch(() => {});
+}
+
+async function ensurePopupVisible(tab) {
+  try {
+    await chrome.action.openPopup();
+  } catch {
+    // Optional fallback to Side Panel if you have it set up:
+    // try {
+    //   await chrome.sidePanel.setOptions({ tabId: tab.id, path: "sidepanel.html", enabled: true });
+    //   await chrome.sidePanel.open({ tabId: tab.id });
+    // } catch {}
   }
 }
 
