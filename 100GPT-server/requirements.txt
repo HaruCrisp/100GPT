@@ -5,3 +5,4 @@ openai
 pillow
 pytesseract
 python-multipart
+google-generativeai

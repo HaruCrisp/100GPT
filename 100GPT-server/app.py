@@ -1,4 +1,3 @@
-# app.py
 from pathlib import Path
 import os
 import re
@@ -11,39 +10,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from dotenv import dotenv_values
-from openai import OpenAI
 
 # OCR deps
 from PIL import Image
 import pytesseract
 
+# Gemini SDK
+import google.generativeai as genai
+
 # -----------------------------
-# Load API key from .env (robust on Windows & reload)
+# Load Gemini API key from .env
 # -----------------------------
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 CONFIG = dotenv_values(ENV_PATH)
-OPENAI_API_KEY = (CONFIG.get("OPENAI_API_KEY") or "").strip()
+GEMINI_API_KEY = (CONFIG.get("GEMINI_API_KEY") or "").strip()
 
-if not OPENAI_API_KEY or not OPENAI_API_KEY.startswith("sk-"):
+if not GEMINI_API_KEY:
     raise RuntimeError(
-        f"OPENAI_API_KEY missing/malformed in {ENV_PATH}. "
-        "Add a line like: OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx"
+        f"GEMINI_API_KEY missing in {ENV_PATH}. "
+        "Add a line like: GEMINI_API_KEY=your_api_key_here"
     )
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
 
 # -----------------------------
-# Tesseract: point directly to exe on Windows (optional if on PATH)
+# Tesseract (Windows default path)
 # -----------------------------
-# If you've added Tesseract to PATH, you can comment this out.
-# Default installer path:
-#   C:\Program Files\Tesseract-OCR\tesseract.exe
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # -----------------------------
 # FastAPI app
 # -----------------------------
-app = FastAPI(title="100GPT Server", version="v1.1")
+app = FastAPI(title="100GPT Server", version="v2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],   # loosen for development; tighten in prod
@@ -55,19 +53,18 @@ app.add_middleware(
 def root() -> Dict[str, Any]:
     return {"message": "Backend is running"}
 
-# ---------- Helpful health/debug ----------
-@app.get("/health/openai")
-def health_openai():
+@app.get("/health/gemini")
+def health_gemini():
     try:
-        client.models.list()  # minimal auth check
-        return {"openai_ok": True}
+        models = genai.list_models()
+        return {"gemini_ok": True, "models_found": len(list(models))}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"openai_ok": False, "error": str(e)})
+        return JSONResponse(status_code=500, content={"gemini_ok": False, "error": str(e)})
 
 @app.get("/debug/key")
 def debug_key():
-    tail = OPENAI_API_KEY[-6:] if OPENAI_API_KEY else "NONE"
-    return {"present": bool(OPENAI_API_KEY), "length": len(OPENAI_API_KEY), "tail": tail}
+    tail = GEMINI_API_KEY[-6:] if GEMINI_API_KEY else "NONE"
+    return {"present": bool(GEMINI_API_KEY), "length": len(GEMINI_API_KEY), "tail": tail}
 
 # ---------- Schemas ----------
 class ParaphraseRequest(BaseModel):
@@ -75,7 +72,6 @@ class ParaphraseRequest(BaseModel):
 
 # ---------- Utilities ----------
 def _tiny_local_paraphrase(s: str) -> str:
-    """Very small fallback rewrite in case model call fails."""
     rules = [
         (r"\butilize\b", "use"),
         (r"\bleverage\b", "use"),
@@ -90,18 +86,12 @@ def _tiny_local_paraphrase(s: str) -> str:
 
 def _call_model(system_prompt: str, user_text: str) -> Dict[str, Any]:
     try:
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",  # keep your chosen model
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text},
-            ],
-            timeout=45,
-        )
-        return {"ok": True, "content": resp.choices[0].message.content, "fallback": False}
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        resp = model.generate_content([system_prompt, user_text])
+        return {"ok": True, "content": resp.text, "fallback": False}
     except Exception as e:
-        # soft-fallback
-        return {"ok": True, "content": _tiny_local_paraphrase(user_text), "fallback": True, "note": f"Model error: {e}"}
+        return {"ok": True, "content": _tiny_local_paraphrase(user_text),
+                "fallback": True, "note": f"Gemini error: {e}"}
 
 def _open_image_from_bytes(raw: bytes) -> Image.Image:
     img = Image.open(io.BytesIO(raw))
@@ -109,11 +99,10 @@ def _open_image_from_bytes(raw: bytes) -> Image.Image:
 
 def _ocr_image(img: Image.Image) -> str:
     text = pytesseract.image_to_string(img)
-    # small cleanup
     text = re.sub(r"\s+\n", "\n", text).strip()
     return text
 
-# ---------- Local echo (no OpenAI) ----------
+# ---------- Local echo ----------
 @app.post("/paraphrase/test")
 def paraphrase_test(payload: ParaphraseRequest) -> Dict[str, Any]:
     text = payload.text.strip()
@@ -158,7 +147,7 @@ async def ocr(file: UploadFile = File(...)) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"OCR error: {e}")
 
 class ImageB64(BaseModel):
-    image_b64: str  # may include "data:image/png;base64,..."
+    image_b64: str
 
 @app.post("/ocr_b64")
 def ocr_b64(payload: ImageB64) -> Dict[str, Any]:
@@ -175,13 +164,13 @@ def ocr_b64(payload: ImageB64) -> Dict[str, Any]:
 
 @app.post("/ocr_pipeline")
 async def ocr_pipeline(
-    mode: str = Form(...),                         # "paraphrase" or "humanize"
+    mode: str = Form(...),
     file: Optional[UploadFile] = File(default=None),
-    image_b64: Optional[str] = Form(default=None), # alternative to file
+    image_b64: Optional[str] = Form(default=None),
 ) -> Dict[str, Any]:
     mode = (mode or "").lower().strip()
     if mode not in {"paraphrase", "humanize"}:
-        raise HTTPException(status_code=400, detail="mode must be 'paraphrase' or 'humanize'")
+        raise HTTPException(status_code=400, detail="mode must be 'paraphrase' or 'humanize'" )
 
     try:
         if file is not None:
@@ -218,7 +207,7 @@ async def ocr_pipeline(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OCR pipeline error: {e}")
 
-# ---------- Optional: run directly (handy on Windows) ----------
+# ---------- Optional: run directly ----------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="127.0.0.1", port=8001, reload=False, log_level="info")

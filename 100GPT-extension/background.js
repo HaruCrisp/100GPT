@@ -1,27 +1,29 @@
 // background.js
-const SERVER = "http://127.0.0.1:8000"; // your FastAPI server
+const SERVER = "http://127.0.0.1:8001"; // your FastAPI server
 
 // -------- context menus --------
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "100gpt-paraphrase-text",
-    title: "Paraphrase with 100GPT",
-    contexts: ["selection"]
-  });
-  chrome.contextMenus.create({
-    id: "100gpt-humanize-text",
-    title: "Humanize with 100GPT",
-    contexts: ["selection"]
-  });
-  chrome.contextMenus.create({
-    id: "100gpt-paraphrase-screenshot",
-    title: "Paraphrase from Screenshot (100GPT)",
-    contexts: ["page", "frame"]
-  });
-  chrome.contextMenus.create({
-    id: "100gpt-humanize-screenshot",
-    title: "Humanize from Screenshot (100GPT)",
-    contexts: ["page", "frame"]
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "100gpt-paraphrase-text",
+      title: "Paraphrase with 100GPT",
+      contexts: ["selection"]
+    });
+    chrome.contextMenus.create({
+      id: "100gpt-humanize-text",
+      title: "Humanize with 100GPT",
+      contexts: ["selection"]
+    });
+    chrome.contextMenus.create({
+      id: "100gpt-paraphrase-screenshot",
+      title: "Paraphrase from Screenshot (100GPT)",
+      contexts: ["page", "frame"]
+    });
+    chrome.contextMenus.create({
+      id: "100gpt-humanize-screenshot",
+      title: "Humanize from Screenshot (100GPT)",
+      contexts: ["page", "frame"]
+    });
   });
 });
 
@@ -38,7 +40,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       const msg = `Paraphrase:\n\n${json.paraphrased || "(no result)"}`;
       broadcastToPopup(msg);
-      await ensurePopupVisible(tab);   // 👈 try to pop the popup open
+      await ensurePopupVisible(tab);
       return;
     }
 
@@ -53,7 +55,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       const msg = `Humanized:\n\n${json.humanized || "(no result)"}`;
       broadcastToPopup(msg);
-      await ensurePopupVisible(tab);   // 👈 open popup
+      await ensurePopupVisible(tab);
       return;
     }
 
@@ -93,13 +95,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // -------- helper: capture + crop (MV3-safe) + send to backend --------
 async function captureAndPipeline(tab, mode) {
-  // 1) inject selector overlay
   await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     files: ["selector.js"]
   });
 
-  // 2) get rect + DPR from page context (NOT from worker)
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
@@ -113,15 +113,12 @@ async function captureAndPipeline(tab, mode) {
   const dpr = result?.dpr || 1;
   if (!rect) return { error: "Selection cancelled" };
 
-  // 3) capture visible area
   const dataUrl = await chrome.tabs
     .captureVisibleTab(tab.windowId, { format: "png" })
     .catch(() => { throw new Error("Capture failed (page not capturable or no permission)."); });
 
-  // 4) crop in worker using createImageBitmap + OffscreenCanvas
   const croppedDataUrl = await cropDataUrlWorker(dataUrl, rect, dpr);
 
-  // 5) send to backend as multipart
   const form = new FormData();
   form.append("mode", mode);
   const blob = await dataURLtoBlobAsync(croppedDataUrl);
@@ -157,9 +154,7 @@ function showResult(message) {
 }
 
 function broadcastToPopup(message) {
-  // Persist so popup can load it on open
   chrome.storage.local.set({ _100gpt_last: { ts: Date.now(), message } });
-  // Live update if popup is already open
   chrome.runtime.sendMessage({ type: 'SHOW_IN_POPUP', message }).catch(() => {});
 }
 
@@ -167,17 +162,12 @@ async function ensurePopupVisible(tab) {
   try {
     await chrome.action.openPopup();
   } catch {
-    // Optional fallback to Side Panel if you have it set up:
-    // try {
-    //   await chrome.sidePanel.setOptions({ tabId: tab.id, path: "sidepanel.html", enabled: true });
-    //   await chrome.sidePanel.open({ tabId: tab.id });
-    // } catch {}
+    // fallback could go here
   }
 }
 
 // ------ image utils (MV3-safe) ------
 async function cropDataUrlWorker(dataUrl, rect, dpr) {
-  // load PNG into bitmap
   const resp = await fetch(dataUrl);
   const srcBlob = await resp.blob();
   const bmp = await createImageBitmap(srcBlob);
@@ -216,4 +206,3 @@ async function safeJson(res) {
     return null;
   }
 }
-
